@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Early Access — AI Music Analyser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: #f0e6ce;
+      min-height: 100vh;
+      font-family: 'Lora', Georgia, serif;
+      padding: 2rem 1rem 5rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      left: 0; right: 0;
+      height: 100px;
+      background-image:
+        repeating-linear-gradient(transparent, transparent 15px, rgba(61,43,13,0.07) 15px, rgba(61,43,13,0.07) 16px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before { top: 0; }
+    body::after { bottom: 0; transform: scaleY(-1); }
+
+    .deco-note {
+      position: fixed;
+      font-size: 90px;
+      color: rgba(61,43,13,0.05);
+      pointer-events: none;
+      z-index: 0;
+      line-height: 1;
+      font-family: serif;
+      user-select: none;
+    }
+    .deco-note.n1 { top: 8%; right: 4%; }
+    .deco-note.n2 { bottom: 12%; left: 3%; font-size: 60px; }
+    .deco-note.n3 { top: 45%; right: 2%; font-size: 50px; opacity: 0.04; }
+
+    .card {
+      background: #fdf6e8;
+      border: 1px solid #d4b97a;
+      border-radius: 4px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 3rem 3rem 2.5rem;
+      position: relative;
+      z-index: 1;
+      box-shadow: 3px 4px 0 #c9a85c;
+    }
+
+    @media (max-width: 520px) {
+      .card { padding: 2rem 1.5rem 2rem; }
+    }
+
+    .eyebrow {
+      font-size: 10.5px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #9a7a3a;
+      margin-bottom: 0.6rem;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #2e1f08;
+      line-height: 1.2;
+      margin-bottom: 0.6rem;
+    }
+
+    .subtitle {
+      font-size: 14.5px;
+      color: #7a5c28;
+      line-height: 1.7;
+      font-style: italic;
+      margin-bottom: 2.2rem;
+    }
+
+    .progress-wrap {
+      height: 3px;
+      background: #e5d09e;
+      border-radius: 2px;
+      margin-bottom: 0.5rem;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #9a7a3a;
+      border-radius: 2px;
+      transition: width 0.35s ease;
+      width: 20%;
+    }
+
+    .step-label {
+      font-size: 11px;
+      color: #b08040;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      text-align: right;
+      margin-bottom: 2rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #dfc99a;
+      margin: 1.75rem 0;
+    }
+
+    .q-block { margin-bottom: 0.25rem; }
+
+    .q-num {
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #b08040;
+      margin-bottom: 0.35rem;
+    }
+
+    .q-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 16.5px;
+      font-weight: 500;
+      color: #2e1f08;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    .opt-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .opt-btn {
+      background: #f5eedf;
+      border: 1px solid #d4b97a;
+      border-radius: 3px;
+      padding: 11px 15px;
+      text-align: left;
+      cursor: pointer;
+      font-family: 'Lora', serif;
+      font-size: 14px;
+      color: #5c3d10;
+      line-height: 1.45;
+      transition: background 0.14s, border-color 0.14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .opt-btn:hover { background: #ecd9ab; border-color: #b8943e; }
+
+    .opt-btn.selected {
+      background: #e5d09e;
+      border-color: #9a7a3a;
+      color: #2e1f08;
+      font-weight: 500;
+    }
+
+    .cb-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .cb-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 15px;
+      background: #f5eedf;
+      border: 1px solid #d4b97a;
+      border-radius: 3px;
+      cursor: pointer;
+      user-select: none;
+      font-family: 'Lora', serif;
+      font-size: 14px;
+      color: #5c3d10;
+      transition: background 0.14s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cb-row:hover { background: #ecd9ab; }
+    .cb-row.checked { background: #e5d09e; border-color: #9a7a3a; color: #2e1f08; }
+
+    .cb-box {
+      width: 17px; height: 17px;
+      border: 1.5px solid #b08040;
+      border-radius: 2px;
+      flex-shrink: 0;
+      background: #fdf6e8;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.14s;
+    }
+
+    .cb-row.checked .cb-box { background: #9a7a3a; border-color: #9a7a3a; }
+
+    .cb-tick {
+      display: none;
+      width: 9px; height: 5px;
+      border-left: 2px solid #fdf6e8;
+      border-bottom: 2px solid #fdf6e8;
+      transform: rotate(-45deg) translate(1px, -1px);
+    }
+
+    .cb-row.checked .cb-tick { display: block; }
+
+    .section-head {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #2e1f08;
+      margin-bottom: 0.3rem;
+    }
+
+    .section-sub {
+      font-size: 13.5px;
+      color: #8a6530;
+      font-style: italic;
+      margin-bottom: 1.4rem;
+      line-height: 1.6;
+    }
+
+    .field-wrap { margin-bottom: 1.1rem; }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: #9a7a3a;
+      margin-bottom: 6px;
+    }
+
+    .field-input {
+      width: 100%;
+      background: #f5eedf;
+      border: 1px solid #d4b97a;
+      border-radius: 3px;
+      padding: 11px 14px;
+      font-family: 'Lora', serif;
+      font-size: 14.5px;
+      color: #2e1f08;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .field-input::placeholder { color: #b09060; }
+    .field-input:focus { border-color: #9a7a3a; background: #fdf6e8; }
+
+    .err {
+      font-size: 12px;
+      color: #a03010;
+      font-style: italic;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: #6b4413;
+      color: #fdf6e8;
+      border: none;
+      border-radius: 3px;
+      padding: 14px 20px;
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 0.75rem;
+      letter-spacing: 0.02em;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .submit-btn:hover { background: #4e2f0a; }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Success */
+    .success-view {
+      display: none;
+      text-align: center;
+      padding: 3.5rem 1.5rem;
+    }
+
+    .success-icon {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 1.2rem;
+    }
+
+    .success-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #2e1f08;
+      margin-bottom: 0.8rem;
+    }
+
+    .success-body {
+      font-size: 15.5px;
+      color: #7a5c28;
+      font-style: italic;
+      line-height: 1.75;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+
+  <span class="deco-note n1">𝄞</span>
+  <span class="deco-note n2">♪</span>
+  <span class="deco-note n3">♩</span>
+
+  <div class="card">
+
+    <div id="form-view">
+      <p class="eyebrow">✦ early access ✦</p>
+      <h1>An ear that never gets tired.</h1>
+      <p class="subtitle">An AI music feedback system which might change the way you practice music!</p>
+
+      <div class="progress-wrap">
+        <div class="progress-fill" id="progress"></div>
+      </div>
+
+      <!-- Q1 -->
+      <div class="q-block">
+        <p class="q-num">Question 01</p>
+        <p class="q-label">When you finish singing a song, what do you usually wonder?</p>
+        <div class="opt-list" id="q1">
+          <button class="opt-btn" data-q="q1" data-v="Did that actually sound good?">Did that actually sound good?</button>
+          <button class="opt-btn" data-q="q1" data-v="Were my notes off somewhere?">Were my notes off somewhere?</button>
+          <button class="opt-btn" data-q="q1" data-v="How close was I to the original?">How close was I to the original?</button>
+          <button class="opt-btn" data-q="q1" data-v="I never know if I nailed it or not">I never know if I nailed it or not</button>
+        </div>
+        <p class="err" id="err-q1">Pick one to continue ✦</p>
+      </div>
+
+      <hr>
+
+      <!-- Q2 -->
+      <div class="q-block">
+        <p class="q-num">Question 02</p>
+        <p class="q-label">Are you trying to improve your singing or playing?</p>
+        <div class="opt-list" id="q2">
+          <button class="opt-btn" data-q="q2" data-v="Yes, actively working on it">Yes, actively working on it</button>
+          <button class="opt-btn" data-q="q2" data-v="I want to but don't know where to start">I want to but don't know where to start</button>
+          <button class="opt-btn" data-q="q2" data-v="Not really, I just enjoy it">Not really, I just enjoy it</button>
+          <button class="opt-btn" data-q="q2" data-v="I'm already decent and want to go further">I'm already decent and want to go further</button>
+        </div>
+        <p class="err" id="err-q2">Pick one to continue ✦</p>
+      </div>
+
+      <hr>
+
+      <!-- Q3 -->
+      <div class="q-block">
+        <p class="q-num">Question 03</p>
+        <p class="q-label">If an AI told you exactly where your notes went off — with timestamps — would you use it?</p>
+        <div class="opt-list" id="q3">
+          <button class="opt-btn" data-q="q3" data-v="Yes, 100%">Yes, 100%</button>
+          <button class="opt-btn" data-q="q3" data-v="Probably yes">Probably yes</button>
+          <button class="opt-btn" data-q="q3" data-v="Maybe, I'd try it">Maybe, I'd try it</button>
+          <button class="opt-btn" data-q="q3" data-v="Not really my thing">Not really my thing</button>
+        </div>
+        <p class="err" id="err-q3">Pick one to continue ✦</p>
+      </div>
+
+      <hr>
+
+      <!-- Q4 -->
+      <div class="q-block">
+        <p class="q-num">Question 04</p>
+        <p class="q-label">What would you most want feedback on? <span style="font-weight:400; font-style:italic; font-size:13px;">(pick all that apply)</span></p>
+        <div class="cb-list" id="q4">
+          <div class="cb-row" data-v="Pitch accuracy"><span class="cb-box"><span class="cb-tick"></span></span>Pitch accuracy</div>
+          <div class="cb-row" data-v="Rhythm and timing"><span class="cb-box"><span class="cb-tick"></span></span>Rhythm and timing</div>
+          <div class="cb-row" data-v="How close to the original"><span class="cb-box"><span class="cb-tick"></span></span>How close to the original</div>
+          <div class="cb-row" data-v="Performance score"><span class="cb-box"><span class="cb-tick"></span></span>Performance score</div>
+          <div class="cb-row" data-v="Vocal range"><span class="cb-box"><span class="cb-tick"></span></span>Vocal range</div>
+          <div class="cb-row" data-v="Instrument playing"><span class="cb-box"><span class="cb-tick"></span></span>Instrument playing</div>
+          <div class="cb-row" data-v="Breath control"><span class="cb-box"><span class="cb-tick"></span></span>Breath control</div>
+          <div class="cb-row" data-v="Emotion and feel"><span class="cb-box"><span class="cb-tick"></span></span>Emotion and feel</div>
+        </div>
+        <p class="err" id="err-q4">Pick at least one ✦</p>
+      </div>
+
+      <hr>
+
+      <!-- Q5 - Contact -->
+      <div class="q-block">
+        <p class="section-head">Get early access before everyone else !</p>
+        <p class="section-sub">No spam, ever. Just a heads-up when the doors open.</p>
+
+        <div class="field-wrap">
+          <label class="field-label" for="fname">Your first name</label>
+          <input class="field-input" type="text" id="fname" placeholder="e.g. Sanskriti" autocomplete="given-name">
+          <p class="err" id="err-fname">We'd love to know your name ✦</p>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label" for="email">Your email address</label>
+          <input class="field-input" type="email" id="email" placeholder="you@wherever.com" autocomplete="email">
+          <p class="err" id="err-email">Drop a valid email so we can reach you ✦</p>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn">Count me in ✦</button>
+    </div>
+
+    <!-- Success -->
+    <div class="success-view" id="success-view">
+      <span class="success-icon">🎵</span>
+      <p class="success-title">You're on the list.</p>
+      <p class="success-body">We'll reach out before anyone else gets access. Keep singing — we'll be listening soon.</p>
+    </div>
+
+  </div>
+
+  <script>
+    const answers = { q1: null, q2: null, q3: null, q4: [] };
+
+    function updateProgress() {
+      let n = 0;
+      if (answers.q1) n++;
+      if (answers.q2) n++;
+      if (answers.q3) n++;
+      if (answers.q4.length) n++;
+      const fname = document.getElementById('fname').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (fname && email) n++;
+      document.getElementById('progress').style.width = (n / 5 * 100) + '%';
+      const labels = ['Step 1 of 5','Step 2 of 5','Step 3 of 5','Step 4 of 5','Almost there!'];
+      document.getElementById('step-label').textContent = labels[Math.min(n, 4)];
+    }
+
+    document.querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const q = this.dataset.q;
+        answers[q] = this.dataset.v;
+        document.querySelectorAll(`.opt-btn[data-q="${q}"]`).forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+        const err = document.getElementById('err-' + q);
+        if (err) err.style.display = 'none';
+        updateProgress();
+      });
+    });
+
+    document.querySelectorAll('.cb-row').forEach(row => {
+      row.addEventListener('click', function () {
+        const v = this.dataset.v;
+        const checked = this.classList.toggle('checked');
+        if (checked) { if (!answers.q4.includes(v)) answers.q4.push(v); }
+        else { answers.q4 = answers.q4.filter(x => x !== v); }
+        document.getElementById('err-q4').style.display = 'none';
+        updateProgress();
+      });
+    });
+
+    ['fname', 'email'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateProgress);
+    });
+
+    function showErr(id) { document.getElementById(id).style.display = 'block'; }
+    function hideErr(id) { document.getElementById(id).style.display = 'none'; }
+    function validEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      let ok = true;
+      if (!answers.q1) { showErr('err-q1'); ok = false; } else hideErr('err-q1');
+      if (!answers.q2) { showErr('err-q2'); ok = false; } else hideErr('err-q2');
+      if (!answers.q3) { showErr('err-q3'); ok = false; } else hideErr('err-q3');
+      if (!answers.q4.length) { showErr('err-q4'); ok = false; } else hideErr('err-q4');
+
+      const fname = document.getElementById('fname').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (!fname) { showErr('err-fname'); ok = false; } else hideErr('err-fname');
+      if (!validEmail(email)) { showErr('err-email'); ok = false; } else hideErr('err-email');
+
+      if (!ok) return;
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        const res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fname,
+            email: email,
+            q1: answers.q1,
+            q2: answers.q2,
+            q3: answers.q3,
+            q4: answers.q4.join(', ')
+          })
+        });
+
+        if (!res.ok) throw new Error('Server error');
+
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('success-view').style.display = 'block';
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Count me in ✦';
+        alert('Something went wrong — please try again in a moment.');
+      }
+    });
+  </script>
+</body>
+</html>
